@@ -6,6 +6,7 @@ I create this repo so that to record my learning. I will implement those algorit
 Welcome anyone to comments and add on features to those algorithm <br>
 
 Current Algorithm in waitlist: <br>
+- Linear Regression
 - KNN
 - SVM
 - Linear Classifier
