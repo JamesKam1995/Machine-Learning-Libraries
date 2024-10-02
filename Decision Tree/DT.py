@@ -57,21 +57,3 @@ class DecisionTree:
         return Node(best_feature, best_threshold, left, right)
         
 
-    def grow_tree(node, examples):
-        condition = find_best_condition(examples) # Find the best condition.
-
-        if condition is None:
-            # No satisfying conditions were found, therefore the grow of the branch stops.
-            set_leaf_prediction(node, examples)
-            return
-
-        # Create two childrens for the node.
-        positive_child, negative_child = split_node(node, condition)
-
-        # List the training examples used by each children.
-        negative_examples = [example for example in examples if not condition(example)]
-        positive_examples = [example for example in examples if condition(example)]
-
-        # Continue the growth of the children.
-        grow_tree(negative_child, negative_examples)
-        grow_tree(positive_child, positive_examples)
