@@ -1,4 +1,4 @@
- 
+# https://www.geeksforgeeks.org/ml-normal-equation-in-linear-regression/
 import numpy as np
 from sklearn.datasets import make_regression
  
