@@ -23,15 +23,68 @@ class DecisionTree:
         self.root = self._grow_tree(X, y) #expand the tree 
 
     def predict(self, X):
-        pass
+        return np.array([self._traverse_tree(x, self.root) for x in X])
+    
+    def _traverse_tree(self, x, node):
+        if node.is_leaf_node():
+            return node.value
+        
+        if x[node.feature] <= node.threshold:
+            return self._traverse_tree(x, node.left)
+        return self._traverse_tree(x, node.right)
 
     def _information_gain(self, y, X_column, threshold):
+        # Weighted Average Entropy(Children)Information Gain=Entropy(Parent)−Weighted Average Entropy(Children)
+        #calculate the entropy of the parent node
+        parent_entropy = self._entropy(y)   
 
-        pass
+        #split the data
+        left_idxs, right_idxs = self._split(X_column, threshold)
+
+        if len(left_idxs) == 0 or len(right_idxs) == 0:
+            return 0
+        
+        #calculate weighted average entropy of the child nodes
+        n = len(y)
+        n_l, n_r = len(left_idxs), len(right_idxs)
+        e_l, e_r = self._entropy(y[left_idxs]), self._entropy(y[right_idxs])
+        child_entropy = (n_l/n)*e_l + (n_r/n)*e_r
+
+        #calculate the information gain
+        information_gain = parent_entropy - child_entropy
+        return information_gain
+
+    def _split(self, X_column, threshold):
+        left_idxs = np.argwhere(X_column <= threshold).flatten()
+        right_idxs = np.argwhere(X_column > threshold).flatten()
+        return left_idxs, right_idxs
+
+
+    def _entropy(self, y):
+        #############################################################################
+        # Inputs:                                                                   #
+        # y : label in the shape (N)                                                #
+        #                                                                           #
+        # Returns:                                                                  #
+        # float, entropy given the formula is sum(-p*log(p))                               #
+        #############################################################################
+        hist = np.bincount(y)
+        ps = hist / len(y)
+        return -np.sum([p * np.log(p) for p in ps if p > 0])
     
     def _grow_tree(self, X, y, depth=0):
 
         #############################################################################
+        # Inputs:                                                                   #
+        # X : Data in the shape of (N, D)                                           #
+        # y : label in the shape (N)                                                #
+        #                                                                           #
+        # Returns:                                                                  #
+        # best feature: feature has the highest information gain                    #
+        # best threshold : best split threshold in the feature                      #
+        # left: nodes added to left                                                 #
+        # right: nodes added to right                                               #
+        #                                                                           #
         # Grow the tree. Steps:                                                     #
         # 1. check the stopping criteria. If there are no nodes, just return the    #
         #    most common value                                                      #
@@ -85,3 +138,8 @@ class DecisionTree:
                     split_threshold = thr
 
         return split_idx, split_threshold
+    
+    def _most_common_label(self, y):
+        return np.bincount(y).argmax()
+
+
