@@ -12,7 +12,6 @@ class Node:
     def is_leaf_node(self):
         return self.value is not None
 
-
 class DecisionTree:
     def __init__(self, min_samples_split=2, max_depth=100, n_features=None):
         self.min_samples_split=min_samples_split
@@ -94,7 +93,6 @@ class DecisionTree:
         hist = np.bincount(y)
         ps = hist / len(y)
         return -np.sum([p * np.log(p) for p in ps if p>0])
-
 
     def _most_common_label(self, y):
         counter = Counter(y)
