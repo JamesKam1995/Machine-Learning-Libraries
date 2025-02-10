@@ -24,7 +24,7 @@ k = 32
 compression_factor = 0.5 # reduce thenumber of feature-maps at transition layers
 
 class DenseLayer(nn.Module):
-    def __init__(self, in_channels):
+    def __init__(self, in_channels, k=32):
         """
         Initialize dense later 
         1. Batch Normalization
@@ -110,7 +110,7 @@ class TransitionLayer(nn.Module):
     """
     downsample the feature map resolution using compression factor
     """
-    def __init__(self, in_channels, compression_factor):
+    def __init__(self, in_channels, compression_factor=0.5):
         super(TransitionLayer, self).__init__()
         self.BN = nn.BatchNorm2d(in_channels)
         self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=int(in_channels * compression_factor), kernel_size=1, stride=1, padding = 0, bias = False)
