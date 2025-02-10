@@ -4,25 +4,6 @@ from IPython.display import Image
 import torchvision
 from torchview import draw_graph
 
-#set device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(device)
-
-"""
-Densenet consist of dense block which have sets of dense layer
-
-"""
-
-model_parameters = {}
-model_parameters['densenet121'] = [6, 12, 24, 16]
-model_parameters['densenet169'] = [6, 12, 32, 32]
-model_parameters['densenet201'] = [6, 12, 48, 32]
-model_parameters['densenet264'] = [6, 12, 64, 48]
-
-#growth rate
-k = 32 
-compression_factor = 0.5 # reduce thenumber of feature-maps at transition layers
-
 class DenseLayer(nn.Module):
     def __init__(self, in_channels):
         """
