@@ -20,13 +20,13 @@ model_parameters['densenet201'] = [6, 12, 48, 32]
 model_parameters['densenet264'] = [6, 12, 64, 48]
 
 #growth rate
-k = 32 
+k = 32
 compression_factor = 0.5 # reduce thenumber of feature-maps at transition layers
 
 class DenseLayer(nn.Module):
-    def __init__(self, in_channels, k=32):
+    def __init__(self, in_channels):
         """
-        Initialize dense later 
+        Initialize dense later
         1. Batch Normalization
         2. Conv
         3. ReLU
@@ -54,7 +54,7 @@ class DenseLayer(nn.Module):
         #The input pass through BN -> Relu -> Conv
 
         x_input = x
-        
+
         x = self.BN1(x)
         x = self.relu(x)
         x = self.conv1(x)
@@ -68,7 +68,7 @@ class DenseLayer(nn.Module):
 
         return x
 
-class DenseBlock(nn.Module):   
+class DenseBlock(nn.Module):
     """
     A Dense Block is a sequence of densely connected layers, where each layer receives the concatenated outputs of all preceding layers as input.
     This design facilitates feature reuse and efficient gradient flow throughout the network.
@@ -86,7 +86,7 @@ class DenseBlock(nn.Module):
         super(DenseBlock, self).__init__()
         self.layer_num = layer_num
         self.deep_nn = nn.ModuleList()
-        
+
         # Add layers
         for num in range(self.layer_num):
             self.deep_nn.add_module(f"DenseLayer_{num}", DenseLayer(in_channels + k*num))
@@ -99,18 +99,18 @@ class DenseBlock(nn.Module):
         returns:
         x : a tensor in shape of (N, C+k, H, W)
         """
-        x_input =x 
+        x_input =x
 
         for layer in self.deep_nn:
             x = layer(x)
-        return x 
+        return x
 
-  
+
 class TransitionLayer(nn.Module):
     """
     downsample the feature map resolution using compression factor
     """
-    def __init__(self, in_channels, compression_factor=0.5):
+    def __init__(self, in_channels, compression_factor):
         super(TransitionLayer, self).__init__()
         self.BN = nn.BatchNorm2d(in_channels)
         self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=int(in_channels * compression_factor), kernel_size=1, stride=1, padding = 0, bias = False)
@@ -120,50 +120,59 @@ class TransitionLayer(nn.Module):
         x = self.BN(x)
         x = self.conv1(x)
         x = self.avgpool(x)
+        return x
 
 class DenseNet(nn.Module):
-    """
-    Overall Architecture of DenseNet:
-    1. 7 x 7 conv, s = 2
-    2. 3 x 3 max pool, s = 2
-    3. Add 3 Dense Block and 3 Transition Layer
-    9. Dense Block
-    10. Classification Layer
-    """
+    def __init__(self,densenet_variant,in_channels,num_classes=1000):
 
-    def __init__(self, densenet_variant, in_channels, num_classes = 1000):
-        super(DenseNet, self).__init__()
         """
-        Input: Densenet_variant : a dictionary with key of densenet variant and value of their parameters
+        Creating an initial 7x7 convolution followed by 3 DenseBlock and 3 Transition layers. Concluding this with 4th DenseBlock, 7x7 global average pool and FC layer
+        for classification
+        Args:
+            densenet_variant (list) : list containing the total number of layers in a dense block
+            in_channels (int) : input number of channels
+            num_classes (int) : Total nnumber of output classes
+
         """
 
-        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=7, stride=2, padding=3, bias = False)
+        super(DenseNet,self).__init__()
+
+        # 7x7 conv with s=2 and maxpool
+        self.conv1 = nn.Conv2d(in_channels=in_channels ,out_channels=64 ,kernel_size=7 ,stride=2 ,padding=3 ,bias = False)
         self.BN1 = nn.BatchNorm2d(num_features=64)
         self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        #Add three layer of Denseblock and transition layer
+
+        # adding 3 DenseBlocks and 3 Transition Layers
         self.deep_nn = nn.ModuleList()
         dense_block_inchannels = 64
-        
-        for num in range(len(densenet_variant))[:-1]:
-            self.deep_nn.add_module(f"DenseBlock{num+1}", DenseBlock(densenet_variant[num], dense_block_inchannels))
-            dense_block_inchannels = int(dense_block_inchannels + k * densenet_variant[num]) # update inchannel 
 
-            self.deep_nn.add_module(f"Transition Layer{num+2}", TransitionLayer(dense_block_inchannels, compression_factor=compression_factor))
-            dense_block_inchannels = int(dense_block_inchannels * compression_factor)
-        
-        #adding the final DenseBlock
-        self.deep_nn.add_module(f"DenseBlock{num+1}", DenseBlock(densenet_variant[-1], dense_block_inchannels))
-        dense_block_inchannels = int(dense_block_inchannels + k * densenet_variant[-1]) # update inchannel 
+        for num in range(len(densenet_variant))[:-1]:
+
+            self.deep_nn.add_module( f"DenseBlock_{num+1}" , DenseBlock( densenet_variant[num] , dense_block_inchannels ) )
+            dense_block_inchannels  = int(dense_block_inchannels + k*densenet_variant[num])
+
+            self.deep_nn.add_module( f"TransitionLayer_{num+1}" , TransitionLayer( dense_block_inchannels,compression_factor ) )
+            dense_block_inchannels = int(dense_block_inchannels*compression_factor)
+
+        # adding the 4th and final DenseBlock
+        self.deep_nn.add_module( f"DenseBlock_{num+2}" , DenseBlock( densenet_variant[-1] , dense_block_inchannels ) )
+        dense_block_inchannels  = int(dense_block_inchannels + k*densenet_variant[-1])
 
         self.BN2 = nn.BatchNorm2d(num_features=dense_block_inchannels)
 
+        # Average Pool
         self.average_pool = nn.AdaptiveAvgPool2d(1)
 
+        # fully connected layer
         self.fc1 = nn.Linear(dense_block_inchannels, num_classes)
 
-    def forward(self, x):
+
+    def forward(self,x):
+        """
+        deep_nn is the module_list container which has all the dense blocks and transition blocks
+        """
         x = self.relu(self.BN1(self.conv1(x)))
         x = self.maxpool(x)
 
@@ -174,8 +183,9 @@ class DenseNet(nn.Module):
         x = self.average_pool(x)
 
         x = torch.flatten(x, start_dim=1)
-        x =self.fc1(x)
+        x = self.fc1(x)
 
+        # print(x.shape)
         return x
 
 
