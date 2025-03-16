@@ -38,56 +38,55 @@ class FireModule(nn.Module):
 
 
 class SqueezeNet(nn.Module):
-    def __init__(self, in_channels, num_classess=1000):
+    def __init__(self, in_channels, num_classes=1000):  # Fix: Use `num_classes` instead of `num_classess`
         super(SqueezeNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=96, kernel_size=7, stride=2)
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=96, kernel_size=7, stride=2, padding=2)
         self.relu = nn.ReLU(inplace=True)
-        self.maxpool1 = nn.MaxPool2d(kernel_size=3, stride=2)
+        self.maxpool1 = nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True)
 
-        #Fire Module
         self.Fire2 = FireModule(96, 16, 64, 64)
         self.Fire3 = FireModule(128, 16, 64, 64)
         self.Fire4 = FireModule(128, 32, 128, 128)
         
-        self.maxpool4 = nn.MaxPool2d(kernel_size=3, stride=2)
+        self.maxpool4 = nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True)
 
-        #Fire Module 
         self.Fire5 = FireModule(256, 32, 128, 128)
         self.Fire6 = FireModule(256, 48, 192, 192)
         self.Fire7 = FireModule(384, 48, 192, 192) 
         self.Fire8 = FireModule(384, 64, 256, 256)
 
-        self.maxpool8 = nn.MaxPool2d(kernel_size=3, stride=2)    
+        self.maxpool8 = nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True)    
 
         self.Fire9 = FireModule(512, 64, 256, 256)
 
         self.dropout = nn.Dropout(p=0.5)
-        self.conv10 = nn.Conv2d(in_channels=512, out_channels=num_classess, kernel_size=1, stride=1)
-        self.avgpoll10 = nn.AdaptiveAvgPool2d((1,1))
-
+        self.conv10 = nn.Conv2d(in_channels=512, out_channels=num_classes, kernel_size=1, stride=1)  # Use `num_classes`
+        self.avgpool10 = nn.AdaptiveAvgPool2d((1, 1))
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.relu(x)
         x = self.maxpool1(x)
+
         x = self.Fire2(x)
         x = self.Fire3(x)
         x = self.Fire4(x)
         x = self.maxpool4(x)
+
         x = self.Fire5(x)
         x = self.Fire6(x)
         x = self.Fire7(x)
         x = self.Fire8(x)
         x = self.maxpool8(x)
+
         x = self.Fire9(x)
 
         x = self.dropout(x)
         x = self.conv10(x)
-        x = self.avgpoll10(x)
+        x = self.avgpool10(x)
 
         x = torch.flatten(x, 1)
-
-        return x 
+        return x
 
 
 
