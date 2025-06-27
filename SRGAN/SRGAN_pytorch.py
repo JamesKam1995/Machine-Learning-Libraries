@@ -48,9 +48,9 @@ class Generator(nn.Module):
         self.conv3 = nn.Conv2d(in_channels=num_channel, out_channels=in_channels, kernel_size=9, padding=4, stride=1, bias=False)
 
     def forward(self, x):
-        out1 = self.prelu(self.conv1(x))
-        out = self.res_block(out1)
-        out = self.bn(self.conv2(out))
+        out1 = self.Prelu(self.conv1(x))
+        out = self.ResBlock(out1)
+        out = self.BN(self.conv2(out))
         out = out + out1  # Residual skip
         out = self.upsample_block(out)
         out = self.conv3(out)
