@@ -55,37 +55,61 @@ class Generator(nn.Module):
         out = self.upsample_block(out)
         out = self.conv3(out)
         return out
-
-class Discriminator(nn.Module):
-    def __init__(self, in_channels=3):
-        super(Discriminator, self).__init__()
-
-        def disc_block(in_feat, out_feat, stride=1, normalize=True):
-            layers = [nn.Conv2d(in_feat, out_feat, kernel_size=3, stride=stride, padding=1)]
-            if normalize:
-                layers.append(nn.BatchNorm2d(out_feat))
-            layers.append(nn.LeakyReLU(0.2, inplace=True))
-            return layers
-
-        self.model = nn.Sequential(
-            *disc_block(in_channels, 64, stride=1, normalize=False),
-            *disc_block(64, 64, stride=2),
-            *disc_block(64, 128, stride=1),
-            *disc_block(128, 128, stride=2),
-            *disc_block(128, 256, stride=1),
-            *disc_block(256, 256, stride=2),
-            *disc_block(256, 512, stride=1),
-            *disc_block(512, 512, stride=2),
-            nn.AdaptiveAvgPool2d(1),  # Replace with Flatten and Linear if you prefer static input sizes
-            nn.Flatten(),
-            nn.Linear(512, 1024),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(1024, 1),
-            nn.Sigmoid()  # For binary classification: real vs fake
+    
+class ConvBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        discriminator=False,
+        use_act=True,
+        use_bn=True,
+        **kwargs,
+    ):
+        super().__init__()
+        self.use_act = use_act
+        self.cnn = nn.Conv2d(in_channels, out_channels, **kwargs, bias=not use_bn)
+        self.bn = nn.BatchNorm2d(out_channels) if use_bn else nn.Identity()
+        self.act = (
+            nn.LeakyReLU(0.2, inplace=True)
+            if discriminator
+            else nn.PReLU(num_parameters=out_channels)
         )
 
     def forward(self, x):
-        return self.model(x)
+        return self.act(self.bn(self.cnn(x))) if self.use_act else self.bn(self.cnn(x))
+
+class Discriminator(nn.Module):
+    def __init__(self, in_channels=3, features=[64, 64, 128, 128, 256, 256, 512, 512]):
+        super().__init__()
+        blocks = []
+        for idx, feature in enumerate(features):
+            blocks.append(
+                ConvBlock(
+                    in_channels,
+                    feature,
+                    kernel_size=3,
+                    stride=1 + idx % 2,
+                    padding=1,
+                    discriminator=True,
+                    use_act=True,
+                    use_bn=False if idx == 0 else True,
+                )
+            )
+            in_channels = feature
+
+        self.blocks = nn.Sequential(*blocks)
+        self.classifier = nn.Sequential(
+            nn.AdaptiveAvgPool2d((6, 6)),
+            nn.Flatten(),
+            nn.Linear(512*6*6, 1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(1024, 1),
+        )
+
+    def forward(self, x):
+        x = self.blocks(x)
+        return self.classifier(x)
 
 
 
